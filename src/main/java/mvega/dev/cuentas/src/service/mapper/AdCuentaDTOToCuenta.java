@@ -19,7 +19,7 @@ public class AdCuentaDTOToCuenta implements IMapper<AdCuentaDTO, Cuenta> {
                 null,
                 in.getFecha(),
                 in.getCantidad(),
-                in.getTotal(),
+                in.getPrecio(),
                 in.getConcepto(),
                 in.getFrecuencia(),
                 in.getCasa()

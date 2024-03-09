@@ -16,7 +16,7 @@ public class CuentaDTO {
     private Long id;
     private Timestamp fecha;
     private BigDecimal cantidad;
-    private BigDecimal total;
+    private BigDecimal price;
     private Concepto concepto;
     private Frecuencia frecuencia;
     private Casa casa;

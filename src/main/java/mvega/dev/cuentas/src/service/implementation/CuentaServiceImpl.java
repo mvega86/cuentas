@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,10 +30,7 @@ public class CuentaServiceImpl implements ICuentaService {
 
         return cuentaRepository.findAll()
                 .stream()
-                .map(cuenta -> {
-                    cuenta.actualizarTotal();
-                    return cuentaToCuentaDTO.map(cuenta);
-                })
+                .map(cuenta -> cuentaToCuentaDTO.map(cuenta))
                 .toList();
     }
 
@@ -40,7 +38,6 @@ public class CuentaServiceImpl implements ICuentaService {
     public CuentaDTO obtenerPorId(Long id) {
         Optional<Cuenta> optionalCuenta = cuentaRepository.findById(id);
         if(optionalCuenta.isPresent()){
-            optionalCuenta.get().actualizarTotal();
             return cuentaToCuentaDTO.map(optionalCuenta.get());
         }
         throw new CuentasException("No se encontró la cuenta.", HttpStatus.NOT_FOUND);
@@ -72,12 +69,14 @@ public class CuentaServiceImpl implements ICuentaService {
         Optional<Cuenta> optionalCuenta = cuentaRepository.findById(id);
         if(optionalCuenta.isPresent()){
             if(cuentaDTO.getFecha() == null ||
+                    cuentaDTO.getPrecio().equals(BigDecimal.valueOf(0)) ||
                     cuentaDTO.getCasa() == null ||
                     cuentaDTO.getConcepto() == null){
                 throw new CuentasException("Debe especificar fecha, casa y concepto de la cuenta.", HttpStatus.BAD_REQUEST);
             }else {
                 Cuenta cuenta = optionalCuenta.get();
                 cuenta.setFecha(cuentaDTO.getFecha());
+                cuenta.setPrecio(cuentaDTO.getPrecio());
                 cuenta.setCasa(cuentaDTO.getCasa());
                 cuenta.setConcepto(cuentaDTO.getConcepto());
                 cuenta.setFrecuencia(cuentaDTO.getFrecuencia());

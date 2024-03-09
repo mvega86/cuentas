@@ -13,7 +13,6 @@ public class DetalleToDetalleDTO implements IMapper<Detalle, DetalleDTO> {
                 in.getId(),
                 in.getNombre(),
                 in.getMedida(),
-                in.getPrecio(),
                 in.getProveedor(),
                 in.getPrioridad(),
                 in.getConcepto_detalle()

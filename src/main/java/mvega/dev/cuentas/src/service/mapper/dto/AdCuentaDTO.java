@@ -21,7 +21,7 @@ import java.sql.Timestamp;
 public class AdCuentaDTO {
     private Timestamp fecha;
     private BigDecimal cantidad;
-    private BigDecimal total;
+    private BigDecimal precio;
     private Concepto concepto;
     private Frecuencia frecuencia;
     private Casa casa;

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/cuentas")
+@CrossOrigin(origins = {"http://localhost:4200"})
 public class CuentaController {
     @Autowired
     private ICuentaService cuentaService;

@@ -15,7 +15,6 @@ public class DetalleDTO {
     private Long id;
     private String nombre;
     private String medida;
-    private BigDecimal price;
     private String proveedor;
     private EPrioridad prioridad;
     private Concepto concepto;

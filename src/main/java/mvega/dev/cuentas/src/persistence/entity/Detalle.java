@@ -20,7 +20,6 @@ public class Detalle {
     @Column(nullable = false)
     private String nombre;
     private String medida;
-    private BigDecimal precio;
     private String proveedor;
     private EPrioridad prioridad;
 

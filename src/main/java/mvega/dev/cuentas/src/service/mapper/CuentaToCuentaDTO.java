@@ -19,7 +19,7 @@ public class CuentaToCuentaDTO implements IMapper<Cuenta, CuentaDTO> {
                 in.getId(),
                 in.getFecha(),
                 in.getCantidad(),
-                in.getTotal(),
+                in.getPrecio(),
                 in.getConcepto(),
                 in.getFrecuencia(),
                 in.getCasa()

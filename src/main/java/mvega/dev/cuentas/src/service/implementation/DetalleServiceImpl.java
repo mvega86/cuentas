@@ -43,8 +43,8 @@ public class DetalleServiceImpl implements IDetalleService {
 
     @Override
     public void adicionar(AdDetalleDTO adDetalleDTO) {
-        if(adDetalleDTO.getNombre().isBlank() || adDetalleDTO.getPrecio().equals(BigDecimal.valueOf(0)) || adDetalleDTO.getConcepto_detalle() == null){
-            throw new CuentasException("Debe especificar nombre, precio y concepto del detalle.", HttpStatus.BAD_REQUEST);
+        if(adDetalleDTO.getNombre().isBlank() || adDetalleDTO.getConcepto_detalle() == null){
+            throw new CuentasException("Debe especificar nombre y concepto del detalle.", HttpStatus.BAD_REQUEST);
         }
         else {
             detalleRepository.save(adDetalleDTOToDetalle.map(adDetalleDTO));
@@ -55,12 +55,11 @@ public class DetalleServiceImpl implements IDetalleService {
     public void actualizar(Long id, AdDetalleDTO adDetalleDTO) {
         Optional<Detalle> optionalDetalle = detalleRepository.findById(id);
         if(optionalDetalle.isPresent()){
-            if(adDetalleDTO.getNombre().isBlank() || adDetalleDTO.getPrecio().equals(BigDecimal.valueOf(0)) || adDetalleDTO.getConcepto_detalle() == null) {
-                throw new CuentasException("Debe especificar nombre, precio y concepto del detalle.", HttpStatus.BAD_REQUEST);
+            if(adDetalleDTO.getNombre().isBlank() || adDetalleDTO.getConcepto_detalle() == null) {
+                throw new CuentasException("Debe especificar nombre y concepto del detalle.", HttpStatus.BAD_REQUEST);
             }else{
                 Detalle detalle = optionalDetalle.get();
                 detalle.setNombre(adDetalleDTO.getNombre());
-                detalle.setPrecio(adDetalleDTO.getPrecio());
                 detalle.setProveedor(adDetalleDTO.getProveedor());
                 detalle.setConcepto_detalle(adDetalleDTO.getConcepto_detalle());
                 detalleRepository.save(detalle);
