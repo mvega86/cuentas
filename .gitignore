@@ -31,3 +31,13 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Codigo legado archivado durante el rediseno (recuperable en git 1e0f962)
+legacy/
+
+### Secretos locales: credenciales y tokens de Gmail (CLAUDE §1, §7)
+secrets/
+.env
+
+### Carpetas de importacion: los PDFs reales NUNCA se versionan
+data/

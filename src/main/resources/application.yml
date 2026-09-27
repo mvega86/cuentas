@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: cuentas
+
+  datasource:
+    url: ${CUENTAS_DB_URL:jdbc:postgresql://localhost:5433/cuentas}
+    username: ${CUENTAS_DB_USER:cuentas}
+    password: ${CUENTAS_DB_PASSWORD:cuentas}
+
+  jpa:
+    # El esquema lo gobierna Flyway. Hibernate solo valida que coincide (CLAUDE §12).
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      # Los tickets de muestra rondan los 170 KB; 10 MB da margen de sobra.
+      max-file-size: 10MB
+      max-request-size: 40MB
+
+server:
+  port: ${CUENTAS_SERVER_PORT:8081}
+
+cuentas:
+  cors:
+    # CORS centralizado en un unico sitio (CLAUDE §2).
+    allowed-origins: ${CUENTAS_CORS_ORIGINS:http://localhost:4201}
+  imports:
+    mercadona:
+      # Las tres carpetas del pipeline. Las llena una automatizacion externa
+      # (Gmail -> Apps Script -> Drive -> rclone -> sistema de ficheros). Cuentas solo lee
+      # ficheros: no sabe de donde vienen ni habla con Gmail, con Drive ni con rclone.
+      # Los defaults son relativos al backend, para poder arrancar sin configurar nada.
+      directory: ${CUENTAS_IMPORT_MERCADONA_DIR:./data/mercadona/entrada}
+      processed-directory: ${CUENTAS_IMPORT_MERCADONA_PROCESSED_DIR:./data/mercadona/procesados}
+      error-directory: ${CUENTAS_IMPORT_MERCADONA_ERROR_DIR:./data/mercadona/error}
+    # Cada cuanto se revisa la carpeta de entrada, en milisegundos.
+    scan-delay-ms: ${CUENTAS_IMPORT_SCAN_DELAY_MS:30000}
+
+logging:
+  level:
+    mvega.dev.cuentas: INFO
