@@ -46,6 +46,17 @@ public class MercadonaTicketParser implements ReceiptParser {
     private static final String AMOUNT = "\\d{1,3}(?:\\.\\d{3})*,\\d{2}";
 
     private static final Pattern COMPANY = Pattern.compile("^(.*?)\\s+([A-Z]-?\\d{8})$");
+
+    /**
+     * El nombre legal del emisor, tal y como lo imprime la cabecera del ticket. No vale la
+     * simple aparición de la palabra "Mercadona": un apunte bancario o una factura de otra
+     * empresa pueden mencionarla sin ser un ticket.
+     */
+    private static final Pattern LEGAL_NAME =
+            Pattern.compile("MERCADONA\\s*,?\\s*S\\.?\\s*A\\.?", Pattern.CASE_INSENSITIVE);
+
+    /** El CIF del emisor, como segunda vía de identificación. */
+    private static final Pattern MERCHANT_TAX_ID = Pattern.compile("\\bA-?46103834\\b");
     private static final Pattern PHONE = Pattern.compile("TEL[EÉ]FONO\\s*:?\\s*(\\d{6,15})");
     private static final Pattern PURCHASED_AT =
             Pattern.compile("(\\d{2}/\\d{2}/\\d{4})\\s+(\\d{1,2}:\\d{2})");
@@ -90,9 +101,45 @@ public class MercadonaTicketParser implements ReceiptParser {
         return PARSER_VERSION;
     }
 
+    /**
+     * Comprueba que el documento es de verdad un ticket de Mercadona <strong>antes</strong> de
+     * interpretar nada.
+     *
+     * <p>No basta con que aparezca la palabra "Mercadona": un extracto bancario con la línea
+     * {@code COMPRA MERCADONA 23,45} la contiene, y no es un ticket. Tampoco basta con que
+     * haya palabras genéricas como TOTAL, FECHA, IVA o importes, porque cualquier factura las
+     * tiene.
+     *
+     * <p>Se exigen tres cosas a la vez:
+     * <ol>
+     *   <li>el emisor, por nombre legal ({@code MERCADONA, S.A.}) o por CIF;</li>
+     *   <li>el arranque de la sección de artículos: la cabecera de columnas o, en su defecto,
+     *       la factura simplificada, que es de donde parte el parser cuando no hay cabecera;</li>
+     *   <li>la línea del total.</li>
+     * </ol>
+     *
+     * <p>Los dos últimos son exactamente lo que el parser necesita para acotar y leer las
+     * líneas. Si no están, no puede interpretar el documento y no debe decir que lo soporta:
+     * mejor un {@code UNSUPPORTED} claro que un ticket inventado.
+     */
     @Override
     public boolean supports(String rawText) {
-        return rawText != null && rawText.toUpperCase(Locale.ROOT).contains("MERCADONA");
+        if (rawText == null || rawText.isBlank()) {
+            return false;
+        }
+        List<String> lines = normalizeLines(rawText);
+
+        boolean issuedByMercadona = indexOfMatch(lines, LEGAL_NAME) >= 0
+                || indexOfMatch(lines, MERCHANT_TAX_ID) >= 0;
+        if (!issuedByMercadona) {
+            return false;
+        }
+
+        boolean itemsSectionStarts = indexOfMatch(lines, ITEMS_HEADER) >= 0
+                || indexOfMatch(lines, INVOICE) >= 0;
+        boolean hasTotalLine = indexOfMatch(lines, TOTAL_LINE) >= 0;
+
+        return itemsSectionStarts && hasTotalLine;
     }
 
     @Override

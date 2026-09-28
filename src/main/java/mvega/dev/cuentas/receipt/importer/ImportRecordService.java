@@ -50,6 +50,15 @@ public class ImportRecordService {
         return finish(id, ImportStatus.DUPLICATE, existing, message, storedPath);
     }
 
+    /**
+     * El documento se leyó bien pero no es un ticket de un comercio soportado. Nunca lleva
+     * ticket asociado: no se ha creado ningún gasto.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ImportRecord markUnsupported(Long id, String message, Path storedPath) {
+        return finish(id, ImportStatus.UNSUPPORTED, null, message, storedPath);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ImportRecord markError(Long id, String message, Path storedPath) {
         return finish(id, ImportStatus.ERROR, null, message, storedPath);

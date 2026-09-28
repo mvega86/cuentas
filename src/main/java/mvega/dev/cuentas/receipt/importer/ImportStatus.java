@@ -10,6 +10,17 @@ public enum ImportStatus {
     PROCESSED,
     /** El mismo PDF ya estaba importado. No genera un gasto nuevo. */
     DUPLICATE,
-    /** No se pudo procesar. El motivo queda en {@code errorMessage}. */
+    /**
+     * El PDF se pudo leer, pero no es un ticket de un comercio soportado.
+     *
+     * <p>Se distingue de {@link #ERROR} a propósito: aquí no hay nada roto, simplemente el
+     * documento no es de los que esta aplicación sabe interpretar. Nunca genera gasto.
+     */
+    UNSUPPORTED,
+    /**
+     * Se esperaba un ticket procesable y no se pudo procesar: el fichero no era un PDF
+     * legible, o era del comercio correcto pero faltaban los datos mínimos. El motivo queda
+     * en {@code errorMessage}.
+     */
     ERROR
 }

@@ -92,14 +92,44 @@ final class TicketFixtures {
         }
     }
 
-    /** Un PDF que no es un ticket de Mercadona, para probar el rechazo. */
-    static byte[] unknownMerchantPdf() {
+    /**
+     * Un PDF de otro comercio, con la misma pinta que un ticket: tiene FECHA, IVA, TOTAL e
+     * importes. Sirve para comprobar que esas palabras genéricas no bastan para que se
+     * interprete como un gasto.
+     */
+    static byte[] otherMerchantPdf() {
         return pdfFromText("""
-                CARREFOUR, S.A.   A-00000000
+                SUPERMERCADOS EJEMPLO, S.L.   B-00000000
                 CL OTRA, 2
                 00000 CIUDAD
-                26/09/2026 10:00
-                TOTAL (€) 12,34
+                FECHA: 26/09/2026 10:00
+                Cnt. Descripción P. Unit Importe
+                1 PRODUCTO CUALQUIERA 9,99
+                2 OTRO PRODUCTO 1,00 2,00
+                TOTAL (€) 11,99
+                TARJETA BANCARIA 11,99
+                IVA BASE IMP. (€) CUOTA (€) TOTAL (€)
+                21% 9,91 2,08 11,99
                 """);
+    }
+
+    /**
+     * Un PDF que menciona Mercadona pero no es un ticket: un apunte de extracto bancario.
+     * Es el caso que el reconocimiento anterior dejaba pasar, porque solo buscaba la palabra.
+     */
+    static byte[] bankStatementMentioningMercadonaPdf() {
+        return pdfFromText("""
+                BANCO EJEMPLO - EXTRACTO DE CUENTA
+                FECHA        CONCEPTO                      IMPORTE
+                12/09/2026   COMPRA MERCADONA                 3,77
+                14/09/2026   COMPRA MERCADONA                17,72
+                26/09/2026   COMPRA MERCADONA, S.A.          73,70
+                TOTAL (€) 95,19
+                """);
+    }
+
+    /** Un fichero que no es un PDF en absoluto. */
+    static byte[] notAPdf() {
+        return "esto no es un PDF, es texto suelto".getBytes(StandardCharsets.UTF_8);
     }
 }

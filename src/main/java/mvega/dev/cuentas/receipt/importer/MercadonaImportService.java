@@ -162,12 +162,15 @@ public class MercadonaImportService {
                     "El fichero no se pudo leer como PDF: " + e.getMessage());
         }
 
+        // Que el PDF esté en la carpeta de Mercadona no garantiza que sea un ticket de
+        // Mercadona. Si ningún parser lo reconoce, el documento no se interpreta en absoluto:
+        // no se crea ticket, no se crean líneas y no se contabiliza ningún gasto.
         Optional<ReceiptParser> parser = parsers.stream()
                 .filter(candidate -> candidate.supports(rawText))
                 .findFirst();
         if (parser.isEmpty()) {
-            return fail(record, bytes, filename, sourceFile,
-                    "Ningún parser reconoce este ticket. De momento solo se admite Mercadona.");
+            return unsupported(record, bytes, filename, sourceFile,
+                    "Documento no reconocido como ticket de Mercadona");
         }
 
         ParsedReceipt parsed = parser.get().parse(rawText);
@@ -207,6 +210,19 @@ public class MercadonaImportService {
         Path stored = settle(bytes, filename, sourceFile, false);
         log.warn("Importación fallida de {}: {}", filename, message);
         return importRecordService.markError(record.getId(), message, stored);
+    }
+
+    /**
+     * Documento legible pero ajeno. Se registra y se aparta, sin crear nada.
+     *
+     * <p>Distinto de {@link #fail}: no hay ningún fallo que arreglar, solo un documento que
+     * esta aplicación no sabe interpretar.
+     */
+    private ImportRecord unsupported(ImportRecord record, byte[] bytes, String filename,
+            Path sourceFile, String message) {
+        Path stored = settle(bytes, filename, sourceFile, false);
+        log.info("{} no se reconoce como ticket de Mercadona, se aparta sin importar", filename);
+        return importRecordService.markUnsupported(record.getId(), message, stored);
     }
 
     /** Deja el fichero donde toca: procesados si fue bien, error si no. */

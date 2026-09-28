@@ -127,6 +127,39 @@ class ImportApiTest extends PostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("un documento ajeno devuelve 200 con UNSUPPORTED y sin importe")
+    void unsupportedDocumentIsReported() throws Exception {
+        Files.write(INBOX.resolve("otro.pdf"), TicketFixtures.otherMerchantPdf());
+
+        mockMvc.perform(post("/api/imports/mercadona/scan"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unsupported").value(1))
+                .andExpect(jsonPath("$.processed").value(0))
+                .andExpect(jsonPath("$.errors").value(0))
+                .andExpect(jsonPath("$.results[0].status").value("UNSUPPORTED"))
+                .andExpect(jsonPath("$.results[0].errorMessage")
+                        .value("Documento no reconocido como ticket de Mercadona"))
+                .andExpect(jsonPath("$.results[0].receiptId").value(is(nullValue())))
+                .andExpect(jsonPath("$.results[0].totalAmount").value(is(nullValue())));
+
+        // No se ha creado ningún ticket.
+        mockMvc.perform(get("/api/receipts"))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("subir a mano un documento ajeno también es UNSUPPORTED")
+    void unsupportedManualUploadIsReported() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("files", "ajeno.pdf",
+                MediaType.APPLICATION_PDF_VALUE, TicketFixtures.otherMerchantPdf());
+
+        mockMvc.perform(multipart("/api/imports/mercadona/upload").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unsupported").value(1))
+                .andExpect(jsonPath("$.results[0].status").value("UNSUPPORTED"));
+    }
+
+    @Test
     @DisplayName("POST upload acepta multipart y devuelve el resumen")
     void uploadAcceptsMultipart() throws Exception {
         MockMultipartFile file = new MockMultipartFile("files", "a-mano.pdf",

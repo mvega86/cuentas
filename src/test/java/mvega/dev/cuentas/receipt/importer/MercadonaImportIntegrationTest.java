@@ -237,18 +237,92 @@ class MercadonaImportIntegrationTest extends PostgresIntegrationTest {
         assertThat(receiptRepository.count()).isZero();
     }
 
+    // --- Los tres casos del reconocimiento obligatorio ---
+
     @Test
-    @DisplayName("un ticket de otro comercio acaba en ERROR explicando que no se reconoce")
-    void unknownMerchantEndsUpInError() throws IOException {
-        Files.write(INBOX.resolve("carrefour.pdf"), TicketFixtures.unknownMerchantPdf());
+    @DisplayName("1. un ticket válido de Mercadona se importa y genera gasto")
+    void caseOneValidMercadonaTicket() throws IOException {
+        dropInInbox(TicketFixtures.TICKET_73_70);
+
+        List<ImportRecord> records = scanner.scanNow();
+
+        assertThat(records).singleElement().satisfies(record ->
+                assertThat(record.getProcessingStatus()).isEqualTo(ImportStatus.PROCESSED));
+        assertThat(receiptRepository.count()).isEqualTo(1);
+        assertThat(namesIn(PROCESSED)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("2. un PDF de otro comercio es UNSUPPORTED y no genera ningún gasto")
+    void caseTwoDocumentFromAnotherMerchant() throws IOException {
+        Files.write(INBOX.resolve("otro-comercio.pdf"), TicketFixtures.otherMerchantPdf());
 
         List<ImportRecord> records = scanner.scanNow();
 
         assertThat(records).singleElement().satisfies(record -> {
-            assertThat(record.getProcessingStatus()).isEqualTo(ImportStatus.ERROR);
-            assertThat(record.getErrorMessage()).contains("Mercadona");
+            assertThat(record.getProcessingStatus()).isEqualTo(ImportStatus.UNSUPPORTED);
+            assertThat(record.getErrorMessage())
+                    .isEqualTo("Documento no reconocido como ticket de Mercadona");
+            assertThat(record.getReceipt()).isNull();
         });
-        assertThat(namesIn(FAILED)).containsExactly("carrefour.pdf");
+        // Ni ticket, ni líneas, ni gasto contabilizado.
+        assertThat(receiptRepository.count()).isZero();
+        assertThat(jdbcClient.sql("select count(*) from receipt_item").query(Long.class).single())
+                .isZero();
+        assertThat(namesIn(FAILED)).containsExactly("otro-comercio.pdf");
+        assertThat(namesIn(INBOX)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("3. un PDF ilegible es ERROR, no UNSUPPORTED")
+    void caseThreeUnreadableDocument() throws IOException {
+        Files.write(INBOX.resolve("roto.pdf"), TicketFixtures.notAPdf());
+
+        List<ImportRecord> records = scanner.scanNow();
+
+        assertThat(records).singleElement().satisfies(record -> {
+            // Se esperaba un documento procesable y no se pudo procesar: eso es ERROR.
+            assertThat(record.getProcessingStatus()).isEqualTo(ImportStatus.ERROR);
+            assertThat(record.getErrorMessage()).contains("no se pudo leer como PDF");
+        });
+        assertThat(receiptRepository.count()).isZero();
+        assertThat(namesIn(FAILED)).containsExactly("roto.pdf");
+    }
+
+    @Test
+    @DisplayName("mencionar Mercadona no basta: un extracto bancario es UNSUPPORTED")
+    void bankStatementMentioningMercadonaIsUnsupported() throws IOException {
+        Files.write(INBOX.resolve("extracto.pdf"),
+                TicketFixtures.bankStatementMentioningMercadonaPdf());
+
+        List<ImportRecord> records = scanner.scanNow();
+
+        assertThat(records).singleElement().satisfies(record ->
+                assertThat(record.getProcessingStatus()).isEqualTo(ImportStatus.UNSUPPORTED));
+        // El extracto lleva tres importes y un TOTAL. Ninguno se ha contabilizado.
+        assertThat(receiptRepository.count()).isZero();
+        assertThat(jdbcClient.sql("select coalesce(sum(total_amount), 0) from receipt")
+                .query(java.math.BigDecimal.class).single()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @DisplayName("un documento ajeno no afecta a los tickets buenos de la misma pasada")
+    void unsupportedDocumentDoesNotSpoilTheRest() throws IOException {
+        dropInInbox(TicketFixtures.TICKET_3_77);
+        Files.write(INBOX.resolve("zz-otro-comercio.pdf"), TicketFixtures.otherMerchantPdf());
+        Files.write(INBOX.resolve("zz-roto.pdf"), TicketFixtures.notAPdf());
+
+        List<ImportRecord> records = scanner.scanNow();
+
+        assertThat(records).hasSize(3);
+        assertThat(records).extracting(ImportRecord::getProcessingStatus)
+                .containsExactlyInAnyOrder(ImportStatus.PROCESSED, ImportStatus.UNSUPPORTED,
+                        ImportStatus.ERROR);
+        assertThat(receiptRepository.count()).isEqualTo(1);
+        assertThat(receiptRepository.findAll().getFirst().getTotalAmount())
+                .isEqualByComparingTo(new BigDecimal("3.77"));
+        assertThat(namesIn(PROCESSED)).hasSize(1);
+        assertThat(namesIn(FAILED)).hasSize(2);
     }
 
     @Test

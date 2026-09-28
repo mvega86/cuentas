@@ -226,12 +226,99 @@ class MercadonaTicketParserTest {
                                 .toList());
     }
 
+    // --- Reconocimiento del documento, antes de interpretar nada ---
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("samples")
+    @DisplayName("los ocho tickets de Mercadona se reconocen")
+    void recognisesEveryRealTicket(Expected expected) {
+        assertThat(parser.supports(TicketFixtures.textOf(expected.file()))).isTrue();
+    }
+
     @Test
-    @DisplayName("el parser reconoce los tickets de Mercadona y rechaza los ajenos")
-    void supportsOnlyMercadona() {
-        assertThat(parser.supports(TicketFixtures.textOf(TicketFixtures.TICKET_2_45))).isTrue();
-        assertThat(parser.supports("CARREFOUR S.A.\nTOTAL (€) 10,00")).isFalse();
+    @DisplayName("un texto vacío o nulo no se reconoce")
+    void emptyTextIsNotRecognised() {
         assertThat(parser.supports(null)).isFalse();
+        assertThat(parser.supports("")).isFalse();
+        assertThat(parser.supports("   \n  \n ")).isFalse();
+    }
+
+    @Test
+    @DisplayName("un ticket de otro comercio no se reconoce, aunque tenga TOTAL, IVA e importes")
+    void otherMerchantIsNotRecognised() {
+        String otro = """
+                SUPERMERCADOS EJEMPLO, S.L.   B-00000000
+                CL OTRA, 2
+                FECHA: 26/09/2026 10:00
+                Cnt. Descripción P. Unit Importe
+                1 PRODUCTO CUALQUIERA 9,99
+                TOTAL (€) 9,99
+                IVA BASE IMP. (€) CUOTA (€) TOTAL (€)
+                21% 8,26 1,73 9,99
+                """;
+
+        assertThat(parser.supports(otro)).isFalse();
+    }
+
+    @Test
+    @DisplayName("mencionar Mercadona no basta: un extracto bancario no es un ticket")
+    void merelyMentioningMercadonaIsNotEnough() {
+        // Este es el caso que el reconocimiento anterior dejaba pasar: buscaba la palabra
+        // "MERCADONA" en cualquier parte del texto.
+        String extracto = """
+                BANCO EJEMPLO - EXTRACTO DE CUENTA
+                FECHA        CONCEPTO                      IMPORTE
+                12/09/2026   COMPRA MERCADONA                 3,77
+                26/09/2026   COMPRA MERCADONA, S.A.          73,70
+                TOTAL (€) 77,47
+                """;
+
+        assertThat(parser.supports(extracto)).isFalse();
+    }
+
+    @Test
+    @DisplayName("sin la sección de artículos no se reconoce, aunque el emisor sea Mercadona")
+    void mercadonaWithoutItemsSectionIsNotRecognised() {
+        String sinArticulos = """
+                MERCADONA, S.A.   A-46103834
+                CL EJEMPLO, 1
+                26/09/2026 14:04
+                TOTAL (€) 73,70
+                """;
+
+        assertThat(parser.supports(sinArticulos)).isFalse();
+    }
+
+    @Test
+    @DisplayName("sin línea de total no se reconoce, aunque el emisor sea Mercadona")
+    void mercadonaWithoutTotalIsNotRecognised() {
+        String sinTotal = """
+                MERCADONA, S.A.   A-46103834
+                CL EJEMPLO, 1
+                26/09/2026 14:04  OP: 1000001
+                FACTURA SIMPLIFICADA: 2345-012-184052
+                Cnt. Descripción P. Unit Importe
+                1 ACEITE GIRASOL 1,85
+                """;
+
+        assertThat(parser.supports(sinTotal)).isFalse();
+    }
+
+    @Test
+    @DisplayName("se reconoce por CIF aunque el nombre legal venga partido")
+    void recognisedByTaxIdAlone() {
+        String porCif = """
+                MERCADONA
+                A-46103834
+                CL EJEMPLO, 1
+                26/09/2026 14:04  OP: 1000001
+                FACTURA SIMPLIFICADA: 2345-012-184052
+                Cnt. Descripción P. Unit Importe
+                1 ACEITE GIRASOL 1,85
+                TOTAL (€) 1,85
+                """;
+
+        assertThat(parser.supports(porCif)).isTrue();
     }
 
     @Test
