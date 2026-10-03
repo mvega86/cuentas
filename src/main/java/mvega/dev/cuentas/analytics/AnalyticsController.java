@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import mvega.dev.cuentas.analytics.dto.AverageSpendDto;
 
 /** Endpoints de analitica del dashboard (CLAUDE §9, §10, §11). */
 @RestController
@@ -67,6 +68,11 @@ public class AnalyticsController {
     @GetMapping("/price-changes")
     public List<PriceChangeDto> priceChanges(@RequestParam(defaultValue = "5") int limit) {
         return analyticsService.recentPriceChanges(Math.min(limit, 50));
+    }
+
+    @GetMapping("/averages")
+    public AverageSpendDto averages() {
+        return analyticsService.averages();
     }
 
     /** Sin fechas, el dashboard muestra los ultimos 30 dias (CLAUDE §10). */

@@ -17,6 +17,7 @@ import mvega.dev.cuentas.shared.text.ProductNameNormalizer;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import mvega.dev.cuentas.analytics.dto.AverageSpendDto;
 
 /**
  * Agregados de gasto. Se calculan en el backend: las reglas de dinero no se duplican en
@@ -229,6 +230,111 @@ public class AnalyticsService {
                             changePercent, rs.getTimestamp("last_seen_at").toLocalDateTime());
                 })
                 .list();
+    }
+
+    @Transactional(readOnly = true)
+    public AverageSpendDto averages() {
+
+        LocalDate today = LocalDate.now();
+
+        // Semana actual: lunes.
+        LocalDate currentWeekStart = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+
+        // Mes actual: día 1.
+        LocalDate currentMonthStart = today.withDayOfMonth(1);
+
+        BigDecimal weeklyAverage = BigDecimal.ZERO;
+        long completeWeeks = 0;
+
+        BigDecimal monthlyAverage = BigDecimal.ZERO;
+        long completeMonths = 0;
+
+        LocalDate firstPurchase = jdbcClient.sql("""
+                select min(purchased_at)::date
+                from receipt
+                """)
+                .query(LocalDate.class)
+                .optional()
+                .orElse(null);
+
+        if (firstPurchase == null) {
+                return new AverageSpendDto(
+                        BigDecimal.ZERO,
+                        0,
+                        BigDecimal.ZERO,
+                        0);
+        }
+
+        /*
+        * PROMEDIO SEMANAL
+        *
+        * Primera semana considerada:
+        * lunes de la semana de la primera compra.
+        *
+        * Última:
+        * semana completa inmediatamente anterior a la actual.
+        *
+        * Se cuentan también semanas con gasto 0.
+        */
+        LocalDate firstWeekStart =
+                firstPurchase.minusDays(firstPurchase.getDayOfWeek().getValue() - 1L);
+
+        if (firstWeekStart.isBefore(currentWeekStart)) {
+
+                completeWeeks =
+                        ChronoUnit.WEEKS.between(firstWeekStart, currentWeekStart);
+
+                BigDecimal total = totalsBetween(
+                        firstWeekStart.atStartOfDay(),
+                        currentWeekStart.atStartOfDay()
+                ).total();
+
+                if (completeWeeks > 0) {
+                weeklyAverage = total.divide(
+                        BigDecimal.valueOf(completeWeeks),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+                }
+        }
+
+        /*
+        * PROMEDIO MENSUAL
+        *
+        * Desde el mes de la primera compra hasta el último mes completo.
+        * También se cuentan meses con gasto 0.
+        */
+        LocalDate firstMonthStart =
+                firstPurchase.withDayOfMonth(1);
+
+        if (firstMonthStart.isBefore(currentMonthStart)) {
+
+                completeMonths =
+                        ChronoUnit.MONTHS.between(
+                                firstMonthStart,
+                                currentMonthStart
+                        );
+
+                BigDecimal total = totalsBetween(
+                        firstMonthStart.atStartOfDay(),
+                        currentMonthStart.atStartOfDay()
+                ).total();
+
+                if (completeMonths > 0) {
+                monthlyAverage = total.divide(
+                        BigDecimal.valueOf(completeMonths),
+                        2,
+                        RoundingMode.HALF_UP
+                );
+                }
+        }
+
+        return new AverageSpendDto(
+                weeklyAverage,
+                completeWeeks,
+                monthlyAverage,
+                completeMonths
+        );
     }
 
     private record Totals(BigDecimal total, long count) {}
